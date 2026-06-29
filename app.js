@@ -35,13 +35,16 @@ const statusText = document.getElementById('status-text');
 const jobList = document.getElementById('job-list');
 
 // Initialize
-function init() {
+async function init() {
   loadFromSession();
   attachListeners();
 
   // Restore provider selection
   document.getElementById('ai-provider').value = STATE.aiProvider;
   toggleProviderConfig();
+
+  // Load available models from OpenRouter
+  await loadOpenRouterModels();
 
   // Restore API keys
   if (STATE.openRouterKey) {
@@ -60,6 +63,86 @@ function init() {
     showResults();
   } else if (STATE.openRouterKey || STATE.bedrockKey) {
     showUpload();
+  }
+}
+
+async function loadOpenRouterModels() {
+  try {
+    // Check cache first
+    const cached = sessionStorage.getItem('schumpeter_models');
+    const cacheTime = sessionStorage.getItem('schumpeter_models_time');
+
+    if (cached && cacheTime && (Date.now() - parseInt(cacheTime)) < 3600000) {
+      // Cache valid for 1 hour
+      populateModelDropdown(JSON.parse(cached));
+      return;
+    }
+
+    const response = await fetch('https://openrouter.ai/api/v1/models');
+    if (!response.ok) {
+      console.warn('Failed to fetch models, using defaults');
+      return;
+    }
+
+    const data = await response.json();
+    const models = data.data || [];
+
+    // Cache the models
+    sessionStorage.setItem('schumpeter_models', JSON.stringify(models));
+    sessionStorage.setItem('schumpeter_models_time', Date.now().toString());
+
+    populateModelDropdown(models);
+  } catch (error) {
+    console.warn('Error loading models:', error);
+  }
+}
+
+function populateModelDropdown(models) {
+  const select = document.getElementById('openrouter-model');
+
+  // Filter for free models and popular paid ones
+  const freeModels = models.filter(m => m.id.includes(':free'));
+  const popularPaid = models.filter(m =>
+    m.id.includes('claude') ||
+    m.id.includes('gpt-4') ||
+    m.id.includes('gpt-3.5')
+  ).slice(0, 5);
+
+  // Clear existing options
+  select.innerHTML = '';
+
+  // Add free models
+  if (freeModels.length > 0) {
+    const freeGroup = document.createElement('optgroup');
+    freeGroup.label = 'Free Models';
+    freeModels.slice(0, 10).forEach(model => {
+      const option = document.createElement('option');
+      option.value = model.id;
+      option.textContent = `${model.name || model.id.split('/')[1]} (Free)`;
+      freeGroup.appendChild(option);
+    });
+    select.appendChild(freeGroup);
+  }
+
+  // Add paid models
+  if (popularPaid.length > 0) {
+    const paidGroup = document.createElement('optgroup');
+    paidGroup.label = 'Paid Models';
+    popularPaid.forEach(model => {
+      const option = document.createElement('option');
+      option.value = model.id;
+      const pricing = model.pricing?.prompt ? ` ($${(parseFloat(model.pricing.prompt) * 1000000).toFixed(2)}/1M)` : '';
+      option.textContent = `${model.name || model.id.split('/')[1]}${pricing}`;
+      paidGroup.appendChild(option);
+    });
+    select.appendChild(paidGroup);
+  }
+
+  // Set default if current selection not in list
+  if (STATE.openRouterModel && !Array.from(select.options).find(opt => opt.value === STATE.openRouterModel)) {
+    if (freeModels.length > 0) {
+      STATE.openRouterModel = freeModels[0].id;
+    }
   }
 }
 

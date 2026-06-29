@@ -28,8 +28,7 @@ Named after Joseph Schumpeter, who recognized that while innovation drives econo
 5. Upload your CV and find opportunities
 
 **Free Models Available:**
-- Gemini Flash 1.5 8B (Google) — Default, fast and capable
-- Llama 3.2 3B (Meta)
+- Llama 3.2 3B (Meta) — Default, fast and capable
 - Qwen 2 7B (Alibaba)
 - Phi-3 Mini (Microsoft)
 

@@ -1,9 +1,6 @@
 const STATE = {
-  aiProvider: 'openrouter',
   openRouterKey: null,
   openRouterModel: 'meta-llama/llama-3.2-3b-instruct:free',
-  bedrockKey: null,
-  awsRegion: 'us-east-1',
   cvText: null,
   searchTerms: null,
   jobs: []
@@ -11,11 +8,8 @@ const STATE = {
 
 // Session storage keys
 const STORAGE_KEYS = {
-  aiProvider: 'schumpeter_provider',
   openRouter: 'schumpeter_openrouter',
   openRouterModel: 'schumpeter_openrouter_model',
-  bedrockKey: 'schumpeter_bedrock',
-  awsRegion: 'schumpeter_aws_region',
   cvText: 'schumpeter_cv',
   searchTerms: 'schumpeter_terms',
   jobs: 'schumpeter_jobs'
@@ -37,10 +31,6 @@ async function init() {
   loadFromSession();
   attachListeners();
 
-  // Restore provider selection
-  document.getElementById('ai-provider').value = STATE.aiProvider;
-  toggleProviderConfig();
-
   // Load available models from OpenRouter
   await loadOpenRouterModels();
 
@@ -49,14 +39,10 @@ async function init() {
     document.getElementById('openrouter-key').value = STATE.openRouterKey;
     document.getElementById('openrouter-model').value = STATE.openRouterModel;
   }
-  if (STATE.bedrockKey) {
-    document.getElementById('bedrock-key').value = STATE.bedrockKey;
-    document.getElementById('aws-region').value = STATE.awsRegion;
-  }
 
   if (STATE.jobs && STATE.jobs.length > 0) {
     showResults();
-  } else if (STATE.openRouterKey || STATE.bedrockKey) {
+  } else if (STATE.openRouterKey) {
     showUpload();
   }
 }
@@ -144,11 +130,8 @@ function populateModelDropdown(models) {
 function loadFromSession() {
   const config = window.SCHUMPETER_CONFIG || {};
 
-  STATE.aiProvider = sessionStorage.getItem(STORAGE_KEYS.aiProvider) || config.AI_PROVIDER || 'openrouter';
   STATE.openRouterKey = sessionStorage.getItem(STORAGE_KEYS.openRouter) || config.OPENROUTER_API_KEY || null;
   STATE.openRouterModel = sessionStorage.getItem(STORAGE_KEYS.openRouterModel) || config.OPENROUTER_MODEL || 'meta-llama/llama-3.2-3b-instruct:free';
-  STATE.bedrockKey = sessionStorage.getItem(STORAGE_KEYS.bedrockKey);
-  STATE.awsRegion = sessionStorage.getItem(STORAGE_KEYS.awsRegion) || 'us-east-1';
   STATE.cvText = sessionStorage.getItem(STORAGE_KEYS.cvText);
   STATE.searchTerms = sessionStorage.getItem(STORAGE_KEYS.searchTerms);
   const storedJobs = sessionStorage.getItem(STORAGE_KEYS.jobs);
@@ -156,18 +139,14 @@ function loadFromSession() {
 }
 
 function saveToSession() {
-  sessionStorage.setItem(STORAGE_KEYS.aiProvider, STATE.aiProvider);
   sessionStorage.setItem(STORAGE_KEYS.openRouter, STATE.openRouterKey || '');
   sessionStorage.setItem(STORAGE_KEYS.openRouterModel, STATE.openRouterModel || 'meta-llama/llama-3.2-3b-instruct:free');
-  sessionStorage.setItem(STORAGE_KEYS.bedrockKey, STATE.bedrockKey || '');
-  sessionStorage.setItem(STORAGE_KEYS.awsRegion, STATE.awsRegion || 'us-east-1');
   sessionStorage.setItem(STORAGE_KEYS.cvText, STATE.cvText || '');
   sessionStorage.setItem(STORAGE_KEYS.searchTerms, STATE.searchTerms || '');
   sessionStorage.setItem(STORAGE_KEYS.jobs, JSON.stringify(STATE.jobs));
 }
 
 function attachListeners() {
-  document.getElementById('ai-provider').addEventListener('change', toggleProviderConfig);
   document.getElementById('save-keys').addEventListener('click', saveKeys);
   document.getElementById('change-settings').addEventListener('click', showSetup);
   dropZone.addEventListener('click', () => cvInput.click());
@@ -182,48 +161,17 @@ function attachListeners() {
     if (e.key === 'Enter') saveKeys();
   };
   document.getElementById('openrouter-key').addEventListener('keydown', enterToSave);
-  document.getElementById('bedrock-key').addEventListener('keydown', enterToSave);
-  document.getElementById('aws-region').addEventListener('keydown', enterToSave);
-}
-
-function toggleProviderConfig() {
-  const provider = document.getElementById('ai-provider').value;
-  const openrouterConfig = document.getElementById('openrouter-config');
-  const bedrockConfig = document.getElementById('bedrock-config');
-
-  if (provider === 'openrouter') {
-    openrouterConfig.classList.remove('hidden');
-    bedrockConfig.classList.add('hidden');
-  } else {
-    openrouterConfig.classList.add('hidden');
-    bedrockConfig.classList.remove('hidden');
-  }
 }
 
 function saveKeys() {
-  const provider = document.getElementById('ai-provider').value;
-  STATE.aiProvider = provider;
-
-  if (provider === 'openrouter') {
-    const openRouterKey = document.getElementById('openrouter-key').value.trim();
-    if (!openRouterKey) {
-      showError(setupSection, 'OpenRouter API key is required');
-      return;
-    }
-    STATE.openRouterKey = openRouterKey;
-    STATE.openRouterModel = document.getElementById('openrouter-model').value;
-  } else {
-    const bedrockKey = document.getElementById('bedrock-key').value.trim();
-    const awsRegion = document.getElementById('aws-region').value.trim();
-
-    if (!bedrockKey) {
-      showError(setupSection, 'Bedrock API key is required');
-      return;
-    }
-
-    STATE.bedrockKey = bedrockKey;
-    STATE.awsRegion = awsRegion || 'us-east-1';
+  const openRouterKey = document.getElementById('openrouter-key').value.trim();
+  if (!openRouterKey) {
+    showError(setupSection, 'OpenRouter API key is required');
+    return;
   }
+
+  STATE.openRouterKey = openRouterKey;
+  STATE.openRouterModel = document.getElementById('openrouter-model').value;
 
   saveToSession();
   showUpload();
@@ -471,11 +419,7 @@ Return as JSON array with objects containing: title, company, url, matchReason (
 }
 
 async function callLLM(messages) {
-  if (STATE.aiProvider === 'openrouter') {
-    return await callOpenRouter(messages);
-  } else {
-    return await callBedrock(messages);
-  }
+  return await callOpenRouter(messages);
 }
 
 async function callOpenRouter(messages) {
@@ -513,46 +457,6 @@ async function callOpenRouter(messages) {
 
   const data = await response.json();
   return data.choices[0].message.content;
-}
-
-async function callBedrock(messages) {
-  const modelId = 'anthropic.claude-3-5-sonnet-20241022-v2:0';
-  const region = STATE.awsRegion;
-
-  // Convert messages to Claude format
-  const systemPrompt = messages.find(m => m.role === 'system')?.content || '';
-  const userMessages = messages.filter(m => m.role !== 'system');
-
-  const body = {
-    anthropic_version: 'bedrock-2023-05-31',
-    max_tokens: 4096,
-    messages: userMessages
-  };
-
-  if (systemPrompt) {
-    body.system = systemPrompt;
-  }
-
-  // Use short-term API key (bearer token)
-  const endpoint = `https://bedrock-runtime.${region}.amazonaws.com`;
-  const path = `/model/${modelId}/invoke`;
-
-  const response = await fetch(`${endpoint}${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${STATE.bedrockKey}`
-    },
-    body: JSON.stringify(body)
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Bedrock API error: ${errorText}`);
-  }
-
-  const data = await response.json();
-  return data.content[0].text;
 }
 
 function showSetup() {

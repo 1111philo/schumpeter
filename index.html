@@ -17,37 +17,17 @@
       <h2>Configuration</h2>
 
       <div class="input-group">
-        <label for="ai-provider">AI Provider</label>
-        <select id="ai-provider">
-          <option value="openrouter">OpenRouter</option>
-          <option value="bedrock">Amazon Bedrock</option>
+        <label for="openrouter-key">OpenRouter API Key</label>
+        <input type="password" id="openrouter-key" placeholder="sk-or-v1-...">
+        <p class="note">Get free API key from <a href="https://openrouter.ai/" target="_blank">openrouter.ai</a></p>
+      </div>
+
+      <div class="input-group">
+        <label for="openrouter-model">Model</label>
+        <select id="openrouter-model">
+          <option value="">Loading models...</option>
         </select>
-      </div>
-
-      <div id="openrouter-config">
-        <div class="input-group">
-          <label for="openrouter-key">OpenRouter API Key</label>
-          <input type="password" id="openrouter-key" placeholder="sk-or-v1-...">
-        </div>
-        <div class="input-group">
-          <label for="openrouter-model">Model</label>
-          <select id="openrouter-model">
-            <option value="">Loading models...</option>
-          </select>
-          <p class="note">Free models have rate limits but cost nothing</p>
-        </div>
-      </div>
-
-      <div id="bedrock-config" class="hidden">
-        <div class="input-group">
-          <label for="bedrock-key">Bedrock API Key</label>
-          <input type="password" id="bedrock-key" placeholder="Short-term API key from Bedrock console">
-          <p class="note">Get from AWS Console → Bedrock → Short-term API keys (expires in 12 hours)</p>
-        </div>
-        <div class="input-group">
-          <label for="aws-region">AWS Region</label>
-          <input type="text" id="aws-region" placeholder="us-east-1" value="us-east-1">
-        </div>
+        <p class="note">Free models have rate limits but cost nothing</p>
       </div>
 
       <button id="save-keys" class="primary">Save Keys</button>

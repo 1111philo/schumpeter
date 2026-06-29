@@ -19,16 +19,10 @@ Named after Joseph Schumpeter, who recognized that while innovation drives econo
 
 ## Setup
 
-1. **AI Provider** - Choose one:
-   - **OpenRouter**: Get an [OpenRouter API key](https://openrouter.ai/) (free models available!)
-   - **Amazon Bedrock**: Get a short-term API key from AWS Console → Bedrock (expires in 12 hours)
-
-2. **Job Search** (optional but recommended):
-   - **Firecrawl**: Get an [API key](https://firecrawl.dev) (500 free scrapes/month) or self-host
-   - Without this, app will generate job suggestions instead of real search results
-
-3. Visit [https://1111philo.github.io/schumpeter](https://1111philo.github.io/schumpeter)
-4. Enter your API keys and upload your CV
+1. Get an [OpenRouter API key](https://openrouter.ai/) (free models available!)
+2. Visit [https://1111philo.github.io/schumpeter](https://1111philo.github.io/schumpeter)
+3. Enter your API key, choose a free model, and upload your CV
+4. Get job opportunities with clickable search links
 
 **Free Models Available:**
 - Llama 3.2 3B (Meta) — Default, fast and capable
@@ -42,12 +36,10 @@ Minimalistic Scandinavian aesthetic — clean, functional, accessible. Respects 
 ## Tech Stack
 
 - Vanilla JavaScript (no frameworks)
-- AI providers: OpenRouter or Amazon Bedrock
-- Free LLM models (Llama 3.2, Qwen 2, Phi-3)
-- Firecrawl for scraping job boards (optional, can self-host)
+- OpenRouter API with free LLM models (Llama 3.2, Qwen 2, Phi-3)
 - PDF.js for client-side PDF parsing
 - Session storage for privacy
-- Free tier available for all services
+- 100% free with free models
 
 ## Local Development
 

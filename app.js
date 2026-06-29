@@ -1,7 +1,7 @@
 const STATE = {
   aiProvider: 'openrouter',
   openRouterKey: null,
-  openRouterModel: 'google/gemini-2.0-flash-exp:free',
+  openRouterModel: 'google/gemini-flash-1.5-8b-exp:free',
   bedrockKey: null,
   awsRegion: 'us-east-1',
   serpApiKey: null,
@@ -66,7 +66,7 @@ function init() {
 function loadFromSession() {
   STATE.aiProvider = sessionStorage.getItem(STORAGE_KEYS.aiProvider) || 'openrouter';
   STATE.openRouterKey = sessionStorage.getItem(STORAGE_KEYS.openRouter);
-  STATE.openRouterModel = sessionStorage.getItem(STORAGE_KEYS.openRouterModel) || 'google/gemini-2.0-flash-exp:free';
+  STATE.openRouterModel = sessionStorage.getItem(STORAGE_KEYS.openRouterModel) || 'google/gemini-flash-1.5-8b-exp:free';
   STATE.bedrockKey = sessionStorage.getItem(STORAGE_KEYS.bedrockKey);
   STATE.awsRegion = sessionStorage.getItem(STORAGE_KEYS.awsRegion) || 'us-east-1';
   STATE.serpApiKey = sessionStorage.getItem(STORAGE_KEYS.serpApi);
@@ -79,7 +79,7 @@ function loadFromSession() {
 function saveToSession() {
   sessionStorage.setItem(STORAGE_KEYS.aiProvider, STATE.aiProvider);
   sessionStorage.setItem(STORAGE_KEYS.openRouter, STATE.openRouterKey || '');
-  sessionStorage.setItem(STORAGE_KEYS.openRouterModel, STATE.openRouterModel || 'google/gemini-2.0-flash-exp:free');
+  sessionStorage.setItem(STORAGE_KEYS.openRouterModel, STATE.openRouterModel || 'google/gemini-flash-1.5-8b-exp:free');
   sessionStorage.setItem(STORAGE_KEYS.bedrockKey, STATE.bedrockKey || '');
   sessionStorage.setItem(STORAGE_KEYS.awsRegion, STATE.awsRegion || 'us-east-1');
   sessionStorage.setItem(STORAGE_KEYS.serpApi, STATE.serpApiKey || '');

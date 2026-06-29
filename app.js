@@ -1,8 +1,7 @@
 const STATE = {
   aiProvider: 'openrouter',
   openRouterKey: null,
-  awsAccessKey: null,
-  awsSecretKey: null,
+  bedrockKey: null,
   awsRegion: 'us-east-1',
   serpApiKey: null,
   cvText: null,
@@ -14,8 +13,7 @@ const STATE = {
 const STORAGE_KEYS = {
   aiProvider: 'schumpeter_provider',
   openRouter: 'schumpeter_openrouter',
-  awsAccessKey: 'schumpeter_aws_access',
-  awsSecretKey: 'schumpeter_aws_secret',
+  bedrockKey: 'schumpeter_bedrock',
   awsRegion: 'schumpeter_aws_region',
   serpApi: 'schumpeter_serpapi',
   cvText: 'schumpeter_cv',
@@ -47,9 +45,8 @@ function init() {
   if (STATE.openRouterKey) {
     document.getElementById('openrouter-key').value = STATE.openRouterKey;
   }
-  if (STATE.awsAccessKey) {
-    document.getElementById('aws-access-key').value = STATE.awsAccessKey;
-    document.getElementById('aws-secret-key').value = STATE.awsSecretKey;
+  if (STATE.bedrockKey) {
+    document.getElementById('bedrock-key').value = STATE.bedrockKey;
     document.getElementById('aws-region').value = STATE.awsRegion;
   }
   if (STATE.serpApiKey) {
@@ -58,7 +55,7 @@ function init() {
 
   if (STATE.jobs && STATE.jobs.length > 0) {
     showResults();
-  } else if (STATE.openRouterKey || STATE.awsAccessKey) {
+  } else if (STATE.openRouterKey || STATE.bedrockKey) {
     showUpload();
   }
 }
@@ -66,8 +63,7 @@ function init() {
 function loadFromSession() {
   STATE.aiProvider = sessionStorage.getItem(STORAGE_KEYS.aiProvider) || 'openrouter';
   STATE.openRouterKey = sessionStorage.getItem(STORAGE_KEYS.openRouter);
-  STATE.awsAccessKey = sessionStorage.getItem(STORAGE_KEYS.awsAccessKey);
-  STATE.awsSecretKey = sessionStorage.getItem(STORAGE_KEYS.awsSecretKey);
+  STATE.bedrockKey = sessionStorage.getItem(STORAGE_KEYS.bedrockKey);
   STATE.awsRegion = sessionStorage.getItem(STORAGE_KEYS.awsRegion) || 'us-east-1';
   STATE.serpApiKey = sessionStorage.getItem(STORAGE_KEYS.serpApi);
   STATE.cvText = sessionStorage.getItem(STORAGE_KEYS.cvText);
@@ -79,8 +75,7 @@ function loadFromSession() {
 function saveToSession() {
   sessionStorage.setItem(STORAGE_KEYS.aiProvider, STATE.aiProvider);
   sessionStorage.setItem(STORAGE_KEYS.openRouter, STATE.openRouterKey || '');
-  sessionStorage.setItem(STORAGE_KEYS.awsAccessKey, STATE.awsAccessKey || '');
-  sessionStorage.setItem(STORAGE_KEYS.awsSecretKey, STATE.awsSecretKey || '');
+  sessionStorage.setItem(STORAGE_KEYS.bedrockKey, STATE.bedrockKey || '');
   sessionStorage.setItem(STORAGE_KEYS.awsRegion, STATE.awsRegion || 'us-east-1');
   sessionStorage.setItem(STORAGE_KEYS.serpApi, STATE.serpApiKey || '');
   sessionStorage.setItem(STORAGE_KEYS.cvText, STATE.cvText || '');
@@ -103,8 +98,7 @@ function attachListeners() {
     if (e.key === 'Enter') saveKeys();
   };
   document.getElementById('openrouter-key').addEventListener('keydown', enterToSave);
-  document.getElementById('aws-access-key').addEventListener('keydown', enterToSave);
-  document.getElementById('aws-secret-key').addEventListener('keydown', enterToSave);
+  document.getElementById('bedrock-key').addEventListener('keydown', enterToSave);
   document.getElementById('aws-region').addEventListener('keydown', enterToSave);
   document.getElementById('serpapi-key').addEventListener('keydown', enterToSave);
 }
@@ -135,17 +129,15 @@ function saveKeys() {
     }
     STATE.openRouterKey = openRouterKey;
   } else {
-    const awsAccessKey = document.getElementById('aws-access-key').value.trim();
-    const awsSecretKey = document.getElementById('aws-secret-key').value.trim();
+    const bedrockKey = document.getElementById('bedrock-key').value.trim();
     const awsRegion = document.getElementById('aws-region').value.trim();
 
-    if (!awsAccessKey || !awsSecretKey) {
-      showError(setupSection, 'AWS Access Key and Secret Key are required');
+    if (!bedrockKey) {
+      showError(setupSection, 'Bedrock API key is required');
       return;
     }
 
-    STATE.awsAccessKey = awsAccessKey;
-    STATE.awsSecretKey = awsSecretKey;
+    STATE.bedrockKey = bedrockKey;
     STATE.awsRegion = awsRegion || 'us-east-1';
   }
 
@@ -415,20 +407,18 @@ async function callBedrock(messages) {
     body.system = systemPrompt;
   }
 
-  // Sign request using AWS Signature V4
+  // Use short-term API key (bearer token)
   const endpoint = `https://bedrock-runtime.${region}.amazonaws.com`;
   const path = `/model/${modelId}/invoke`;
 
-  const signedRequest = await signAwsRequest(
-    'POST',
-    endpoint,
-    path,
-    JSON.stringify(body),
-    region,
-    'bedrock'
-  );
-
-  const response = await fetch(`${endpoint}${path}`, signedRequest);
+  const response = await fetch(`${endpoint}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${STATE.bedrockKey}`
+    },
+    body: JSON.stringify(body)
+  });
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -437,96 +427,6 @@ async function callBedrock(messages) {
 
   const data = await response.json();
   return data.content[0].text;
-}
-
-async function signAwsRequest(method, endpoint, path, body, region, service) {
-  const now = new Date();
-  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
-  const dateStamp = amzDate.slice(0, 8);
-
-  const headers = {
-    'Content-Type': 'application/json',
-    'X-Amz-Date': amzDate,
-    'Host': new URL(endpoint).host
-  };
-
-  // Create canonical request
-  const canonicalUri = path;
-  const canonicalQuerystring = '';
-  const canonicalHeaders = Object.keys(headers)
-    .sort()
-    .map(key => `${key.toLowerCase()}:${headers[key]}\n`)
-    .join('');
-  const signedHeaders = Object.keys(headers)
-    .map(key => key.toLowerCase())
-    .sort()
-    .join(';');
-
-  const payloadHash = await sha256(body);
-  const canonicalRequest = `${method}\n${canonicalUri}\n${canonicalQuerystring}\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
-
-  // Create string to sign
-  const algorithm = 'AWS4-HMAC-SHA256';
-  const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
-  const canonicalRequestHash = await sha256(canonicalRequest);
-  const stringToSign = `${algorithm}\n${amzDate}\n${credentialScope}\n${canonicalRequestHash}`;
-
-  // Calculate signature
-  const signingKey = await getSignatureKey(STATE.awsSecretKey, dateStamp, region, service);
-  const signature = await hmacSha256(stringToSign, signingKey);
-
-  // Add authorization header
-  headers['Authorization'] = `${algorithm} Credential=${STATE.awsAccessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-
-  return {
-    method: method,
-    headers: headers,
-    body: body
-  };
-}
-
-async function sha256(message) {
-  const msgBuffer = new TextEncoder().encode(message);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function hmacSha256(message, key) {
-  const encoder = new TextEncoder();
-  const keyBuffer = typeof key === 'string' ? encoder.encode(key) : key;
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    keyBuffer,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(message));
-  const signatureArray = Array.from(new Uint8Array(signature));
-  return signatureArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function getSignatureKey(key, dateStamp, region, service) {
-  const kDate = await hmacSha256Raw(dateStamp, `AWS4${key}`);
-  const kRegion = await hmacSha256Raw(region, kDate);
-  const kService = await hmacSha256Raw(service, kRegion);
-  const kSigning = await hmacSha256Raw('aws4_request', kService);
-  return kSigning;
-}
-
-async function hmacSha256Raw(message, key) {
-  const encoder = new TextEncoder();
-  const keyBuffer = typeof key === 'string' ? encoder.encode(key) : key;
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    keyBuffer,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(message));
-  return new Uint8Array(signature);
 }
 
 function showSetup() {

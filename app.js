@@ -387,8 +387,10 @@ async function callOpenRouter(messages) {
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'API request failed');
+    const errorData = await response.json().catch(() => ({}));
+    const errorMsg = errorData.error?.message || errorData.message || `API error: ${response.status}`;
+    console.error('OpenRouter error:', errorData);
+    throw new Error(errorMsg);
   }
 
   const data = await response.json();

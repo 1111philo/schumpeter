@@ -19,10 +19,12 @@ Named after Joseph Schumpeter, who recognized that while innovation drives econo
 
 ## Setup
 
-1. Get an [OpenRouter API key](https://openrouter.ai/)
+1. Choose your AI provider:
+   - **OpenRouter**: Get an [OpenRouter API key](https://openrouter.ai/)
+   - **Amazon Bedrock**: Use your AWS credentials (Access Key, Secret Key, Region)
 2. (Optional) Get a [SerpAPI key](https://serpapi.com/) for Google job searches
 3. Visit [https://1111philo.github.io/schumpeter](https://1111philo.github.io/schumpeter)
-4. Enter your API keys (stored in session storage only)
+4. Select provider and enter your API keys (stored in session storage only)
 5. Upload your CV and find opportunities
 
 ## Design
@@ -32,9 +34,11 @@ Minimalistic Scandinavian aesthetic — clean, functional, accessible. Respects 
 ## Tech Stack
 
 - Vanilla JavaScript (no frameworks)
-- OpenRouter API (Claude 3.5 Sonnet)
+- AI providers: OpenRouter or Amazon Bedrock (Claude 3.5 Sonnet)
 - SerpAPI (optional, for real-time Google job searches)
+- PDF.js for client-side PDF parsing
 - Session storage for privacy
+- AWS Signature V4 signing for Bedrock requests
 
 ## Local Development
 

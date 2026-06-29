@@ -1,5 +1,9 @@
 const STATE = {
+  aiProvider: 'openrouter',
   openRouterKey: null,
+  awsAccessKey: null,
+  awsSecretKey: null,
+  awsRegion: 'us-east-1',
   serpApiKey: null,
   cvText: null,
   searchTerms: null,
@@ -8,7 +12,11 @@ const STATE = {
 
 // Session storage keys
 const STORAGE_KEYS = {
+  aiProvider: 'schumpeter_provider',
   openRouter: 'schumpeter_openrouter',
+  awsAccessKey: 'schumpeter_aws_access',
+  awsSecretKey: 'schumpeter_aws_secret',
+  awsRegion: 'schumpeter_aws_region',
   serpApi: 'schumpeter_serpapi',
   cvText: 'schumpeter_cv',
   searchTerms: 'schumpeter_terms',
@@ -31,20 +39,36 @@ function init() {
   loadFromSession();
   attachListeners();
 
+  // Restore provider selection
+  document.getElementById('ai-provider').value = STATE.aiProvider;
+  toggleProviderConfig();
+
+  // Restore API keys
   if (STATE.openRouterKey) {
     document.getElementById('openrouter-key').value = STATE.openRouterKey;
-    document.getElementById('serpapi-key').value = STATE.serpApiKey || '';
+  }
+  if (STATE.awsAccessKey) {
+    document.getElementById('aws-access-key').value = STATE.awsAccessKey;
+    document.getElementById('aws-secret-key').value = STATE.awsSecretKey;
+    document.getElementById('aws-region').value = STATE.awsRegion;
+  }
+  if (STATE.serpApiKey) {
+    document.getElementById('serpapi-key').value = STATE.serpApiKey;
   }
 
   if (STATE.jobs && STATE.jobs.length > 0) {
     showResults();
-  } else if (STATE.openRouterKey) {
+  } else if (STATE.openRouterKey || STATE.awsAccessKey) {
     showUpload();
   }
 }
 
 function loadFromSession() {
+  STATE.aiProvider = sessionStorage.getItem(STORAGE_KEYS.aiProvider) || 'openrouter';
   STATE.openRouterKey = sessionStorage.getItem(STORAGE_KEYS.openRouter);
+  STATE.awsAccessKey = sessionStorage.getItem(STORAGE_KEYS.awsAccessKey);
+  STATE.awsSecretKey = sessionStorage.getItem(STORAGE_KEYS.awsSecretKey);
+  STATE.awsRegion = sessionStorage.getItem(STORAGE_KEYS.awsRegion) || 'us-east-1';
   STATE.serpApiKey = sessionStorage.getItem(STORAGE_KEYS.serpApi);
   STATE.cvText = sessionStorage.getItem(STORAGE_KEYS.cvText);
   STATE.searchTerms = sessionStorage.getItem(STORAGE_KEYS.searchTerms);
@@ -53,7 +77,11 @@ function loadFromSession() {
 }
 
 function saveToSession() {
+  sessionStorage.setItem(STORAGE_KEYS.aiProvider, STATE.aiProvider);
   sessionStorage.setItem(STORAGE_KEYS.openRouter, STATE.openRouterKey || '');
+  sessionStorage.setItem(STORAGE_KEYS.awsAccessKey, STATE.awsAccessKey || '');
+  sessionStorage.setItem(STORAGE_KEYS.awsSecretKey, STATE.awsSecretKey || '');
+  sessionStorage.setItem(STORAGE_KEYS.awsRegion, STATE.awsRegion || 'us-east-1');
   sessionStorage.setItem(STORAGE_KEYS.serpApi, STATE.serpApiKey || '');
   sessionStorage.setItem(STORAGE_KEYS.cvText, STATE.cvText || '');
   sessionStorage.setItem(STORAGE_KEYS.searchTerms, STATE.searchTerms || '');
@@ -61,6 +89,7 @@ function saveToSession() {
 }
 
 function attachListeners() {
+  document.getElementById('ai-provider').addEventListener('change', toggleProviderConfig);
   document.getElementById('save-keys').addEventListener('click', saveKeys);
   dropZone.addEventListener('click', () => cvInput.click());
   dropZone.addEventListener('dragover', handleDragOver);
@@ -70,25 +99,57 @@ function attachListeners() {
   document.getElementById('start-over').addEventListener('click', startOver);
 
   // Keyboard shortcuts
-  document.getElementById('openrouter-key').addEventListener('keydown', (e) => {
+  const enterToSave = (e) => {
     if (e.key === 'Enter') saveKeys();
-  });
-  document.getElementById('serpapi-key').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') saveKeys();
-  });
+  };
+  document.getElementById('openrouter-key').addEventListener('keydown', enterToSave);
+  document.getElementById('aws-access-key').addEventListener('keydown', enterToSave);
+  document.getElementById('aws-secret-key').addEventListener('keydown', enterToSave);
+  document.getElementById('aws-region').addEventListener('keydown', enterToSave);
+  document.getElementById('serpapi-key').addEventListener('keydown', enterToSave);
+}
+
+function toggleProviderConfig() {
+  const provider = document.getElementById('ai-provider').value;
+  const openrouterConfig = document.getElementById('openrouter-config');
+  const bedrockConfig = document.getElementById('bedrock-config');
+
+  if (provider === 'openrouter') {
+    openrouterConfig.classList.remove('hidden');
+    bedrockConfig.classList.add('hidden');
+  } else {
+    openrouterConfig.classList.add('hidden');
+    bedrockConfig.classList.remove('hidden');
+  }
 }
 
 function saveKeys() {
-  const openRouterKey = document.getElementById('openrouter-key').value.trim();
-  const serpApiKey = document.getElementById('serpapi-key').value.trim();
+  const provider = document.getElementById('ai-provider').value;
+  STATE.aiProvider = provider;
 
-  if (!openRouterKey) {
-    showError(setupSection, 'OpenRouter API key is required');
-    return;
+  if (provider === 'openrouter') {
+    const openRouterKey = document.getElementById('openrouter-key').value.trim();
+    if (!openRouterKey) {
+      showError(setupSection, 'OpenRouter API key is required');
+      return;
+    }
+    STATE.openRouterKey = openRouterKey;
+  } else {
+    const awsAccessKey = document.getElementById('aws-access-key').value.trim();
+    const awsSecretKey = document.getElementById('aws-secret-key').value.trim();
+    const awsRegion = document.getElementById('aws-region').value.trim();
+
+    if (!awsAccessKey || !awsSecretKey) {
+      showError(setupSection, 'AWS Access Key and Secret Key are required');
+      return;
+    }
+
+    STATE.awsAccessKey = awsAccessKey;
+    STATE.awsSecretKey = awsSecretKey;
+    STATE.awsRegion = awsRegion || 'us-east-1';
   }
 
-  STATE.openRouterKey = openRouterKey;
-  STATE.serpApiKey = serpApiKey;
+  STATE.serpApiKey = document.getElementById('serpapi-key').value.trim();
   saveToSession();
   showUpload();
 }
@@ -305,6 +366,14 @@ Return as JSON array with objects containing: title, company, url, matchReason (
 }
 
 async function callLLM(messages) {
+  if (STATE.aiProvider === 'openrouter') {
+    return await callOpenRouter(messages);
+  } else {
+    return await callBedrock(messages);
+  }
+}
+
+async function callOpenRouter(messages) {
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -326,6 +395,138 @@ async function callLLM(messages) {
 
   const data = await response.json();
   return data.choices[0].message.content;
+}
+
+async function callBedrock(messages) {
+  const modelId = 'anthropic.claude-3-5-sonnet-20241022-v2:0';
+  const region = STATE.awsRegion;
+
+  // Convert messages to Claude format
+  const systemPrompt = messages.find(m => m.role === 'system')?.content || '';
+  const userMessages = messages.filter(m => m.role !== 'system');
+
+  const body = {
+    anthropic_version: 'bedrock-2023-05-31',
+    max_tokens: 4096,
+    messages: userMessages
+  };
+
+  if (systemPrompt) {
+    body.system = systemPrompt;
+  }
+
+  // Sign request using AWS Signature V4
+  const endpoint = `https://bedrock-runtime.${region}.amazonaws.com`;
+  const path = `/model/${modelId}/invoke`;
+
+  const signedRequest = await signAwsRequest(
+    'POST',
+    endpoint,
+    path,
+    JSON.stringify(body),
+    region,
+    'bedrock'
+  );
+
+  const response = await fetch(`${endpoint}${path}`, signedRequest);
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Bedrock API error: ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data.content[0].text;
+}
+
+async function signAwsRequest(method, endpoint, path, body, region, service) {
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+  const dateStamp = amzDate.slice(0, 8);
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-Amz-Date': amzDate,
+    'Host': new URL(endpoint).host
+  };
+
+  // Create canonical request
+  const canonicalUri = path;
+  const canonicalQuerystring = '';
+  const canonicalHeaders = Object.keys(headers)
+    .sort()
+    .map(key => `${key.toLowerCase()}:${headers[key]}\n`)
+    .join('');
+  const signedHeaders = Object.keys(headers)
+    .map(key => key.toLowerCase())
+    .sort()
+    .join(';');
+
+  const payloadHash = await sha256(body);
+  const canonicalRequest = `${method}\n${canonicalUri}\n${canonicalQuerystring}\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
+
+  // Create string to sign
+  const algorithm = 'AWS4-HMAC-SHA256';
+  const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
+  const canonicalRequestHash = await sha256(canonicalRequest);
+  const stringToSign = `${algorithm}\n${amzDate}\n${credentialScope}\n${canonicalRequestHash}`;
+
+  // Calculate signature
+  const signingKey = await getSignatureKey(STATE.awsSecretKey, dateStamp, region, service);
+  const signature = await hmacSha256(stringToSign, signingKey);
+
+  // Add authorization header
+  headers['Authorization'] = `${algorithm} Credential=${STATE.awsAccessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+  return {
+    method: method,
+    headers: headers,
+    body: body
+  };
+}
+
+async function sha256(message) {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function hmacSha256(message, key) {
+  const encoder = new TextEncoder();
+  const keyBuffer = typeof key === 'string' ? encoder.encode(key) : key;
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyBuffer,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(message));
+  const signatureArray = Array.from(new Uint8Array(signature));
+  return signatureArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function getSignatureKey(key, dateStamp, region, service) {
+  const kDate = await hmacSha256Raw(dateStamp, `AWS4${key}`);
+  const kRegion = await hmacSha256Raw(region, kDate);
+  const kService = await hmacSha256Raw(service, kRegion);
+  const kSigning = await hmacSha256Raw('aws4_request', kService);
+  return kSigning;
+}
+
+async function hmacSha256Raw(message, key) {
+  const encoder = new TextEncoder();
+  const keyBuffer = typeof key === 'string' ? encoder.encode(key) : key;
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyBuffer,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(message));
+  return new Uint8Array(signature);
 }
 
 function showSetup() {

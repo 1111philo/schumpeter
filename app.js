@@ -406,6 +406,8 @@ async function callLLMWithRetry(messages, maxRetries = 2) {
 async function searchJobs(searchTerms) {
   const jobs = [];
 
+  console.log('Searching jobs with terms:', searchTerms);
+
   // Use SerpAPI if available, otherwise use LLM to suggest searches
   if (STATE.serpApiKey) {
     for (const term of searchTerms.slice(0, 5)) {
@@ -420,10 +422,13 @@ async function searchJobs(searchTerms) {
 
   // Fallback: ask LLM to suggest job sources based on search terms
   if (jobs.length < 10) {
+    console.log('Getting LLM job suggestions...');
     const llmJobs = await getLLMJobSuggestions(searchTerms);
+    console.log('LLM returned', llmJobs.length, 'jobs');
     jobs.push(...llmJobs);
   }
 
+  console.log('Total jobs found:', jobs.length);
   return jobs;
 }
 
@@ -452,9 +457,14 @@ Return as JSON array with objects containing: title, company, url, snippet`
     }
   ]);
 
+  console.log('LLM job suggestions response:', response);
+
   try {
-    return JSON.parse(response);
-  } catch {
+    const parsed = JSON.parse(response);
+    console.log('Parsed jobs:', parsed);
+    return parsed;
+  } catch (error) {
+    console.error('Failed to parse job suggestions:', error, 'Response:', response);
     return [];
   }
 }

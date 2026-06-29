@@ -50,6 +50,18 @@
         </div>
       </div>
 
+      <div class="input-group">
+        <label for="firecrawl-api-key">Firecrawl API Key</label>
+        <input type="password" id="firecrawl-api-key" placeholder="Get from firecrawl.dev">
+        <p class="note">Free tier: 500 scrapes/month - <a href="https://firecrawl.dev" target="_blank">Get API key</a> or self-host</p>
+      </div>
+
+      <div class="input-group">
+        <label for="firecrawl-url">Firecrawl Base URL (optional)</label>
+        <input type="text" id="firecrawl-url" placeholder="https://api.firecrawl.dev" value="https://api.firecrawl.dev">
+        <p class="note">Use custom URL if self-hosting</p>
+      </div>
+
       <button id="save-keys" class="primary">Save Keys</button>
       <p class="note">Keys stored in browser session only</p>
     </section>

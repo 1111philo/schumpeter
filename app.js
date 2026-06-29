@@ -147,12 +147,14 @@ function populateModelDropdown(models) {
 }
 
 function loadFromSession() {
-  STATE.aiProvider = sessionStorage.getItem(STORAGE_KEYS.aiProvider) || 'openrouter';
-  STATE.openRouterKey = sessionStorage.getItem(STORAGE_KEYS.openRouter);
-  STATE.openRouterModel = sessionStorage.getItem(STORAGE_KEYS.openRouterModel) || 'meta-llama/llama-3.2-3b-instruct:free';
+  const config = window.SCHUMPETER_CONFIG || {};
+
+  STATE.aiProvider = sessionStorage.getItem(STORAGE_KEYS.aiProvider) || config.AI_PROVIDER || 'openrouter';
+  STATE.openRouterKey = sessionStorage.getItem(STORAGE_KEYS.openRouter) || config.OPENROUTER_API_KEY || null;
+  STATE.openRouterModel = sessionStorage.getItem(STORAGE_KEYS.openRouterModel) || config.OPENROUTER_MODEL || 'meta-llama/llama-3.2-3b-instruct:free';
   STATE.bedrockKey = sessionStorage.getItem(STORAGE_KEYS.bedrockKey);
   STATE.awsRegion = sessionStorage.getItem(STORAGE_KEYS.awsRegion) || 'us-east-1';
-  STATE.serpApiKey = sessionStorage.getItem(STORAGE_KEYS.serpApi);
+  STATE.serpApiKey = sessionStorage.getItem(STORAGE_KEYS.serpApi) || config.SERPAPI_KEY || null;
   STATE.cvText = sessionStorage.getItem(STORAGE_KEYS.cvText);
   STATE.searchTerms = sessionStorage.getItem(STORAGE_KEYS.searchTerms);
   const storedJobs = sessionStorage.getItem(STORAGE_KEYS.jobs);

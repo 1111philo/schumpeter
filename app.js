@@ -4,8 +4,6 @@ const STATE = {
   openRouterModel: 'meta-llama/llama-3.2-3b-instruct:free',
   bedrockKey: null,
   awsRegion: 'us-east-1',
-  firecrawlApiKey: null,
-  firecrawlUrl: 'https://api.firecrawl.dev',
   cvText: null,
   searchTerms: null,
   jobs: []
@@ -18,8 +16,6 @@ const STORAGE_KEYS = {
   openRouterModel: 'schumpeter_openrouter_model',
   bedrockKey: 'schumpeter_bedrock',
   awsRegion: 'schumpeter_aws_region',
-  firecrawlApiKey: 'schumpeter_firecrawl',
-  firecrawlUrl: 'schumpeter_firecrawl_url',
   cvText: 'schumpeter_cv',
   searchTerms: 'schumpeter_terms',
   jobs: 'schumpeter_jobs'
@@ -56,10 +52,6 @@ async function init() {
   if (STATE.bedrockKey) {
     document.getElementById('bedrock-key').value = STATE.bedrockKey;
     document.getElementById('aws-region').value = STATE.awsRegion;
-  }
-  if (STATE.firecrawlApiKey) {
-    document.getElementById('firecrawl-api-key').value = STATE.firecrawlApiKey;
-    document.getElementById('firecrawl-url').value = STATE.firecrawlUrl;
   }
 
   if (STATE.jobs && STATE.jobs.length > 0) {
@@ -157,8 +149,6 @@ function loadFromSession() {
   STATE.openRouterModel = sessionStorage.getItem(STORAGE_KEYS.openRouterModel) || config.OPENROUTER_MODEL || 'meta-llama/llama-3.2-3b-instruct:free';
   STATE.bedrockKey = sessionStorage.getItem(STORAGE_KEYS.bedrockKey);
   STATE.awsRegion = sessionStorage.getItem(STORAGE_KEYS.awsRegion) || 'us-east-1';
-  STATE.firecrawlApiKey = sessionStorage.getItem(STORAGE_KEYS.firecrawlApiKey) || config.FIRECRAWL_API_KEY || null;
-  STATE.firecrawlUrl = sessionStorage.getItem(STORAGE_KEYS.firecrawlUrl) || config.FIRECRAWL_URL || 'https://api.firecrawl.dev';
   STATE.cvText = sessionStorage.getItem(STORAGE_KEYS.cvText);
   STATE.searchTerms = sessionStorage.getItem(STORAGE_KEYS.searchTerms);
   const storedJobs = sessionStorage.getItem(STORAGE_KEYS.jobs);
@@ -171,8 +161,6 @@ function saveToSession() {
   sessionStorage.setItem(STORAGE_KEYS.openRouterModel, STATE.openRouterModel || 'meta-llama/llama-3.2-3b-instruct:free');
   sessionStorage.setItem(STORAGE_KEYS.bedrockKey, STATE.bedrockKey || '');
   sessionStorage.setItem(STORAGE_KEYS.awsRegion, STATE.awsRegion || 'us-east-1');
-  sessionStorage.setItem(STORAGE_KEYS.firecrawlApiKey, STATE.firecrawlApiKey || '');
-  sessionStorage.setItem(STORAGE_KEYS.firecrawlUrl, STATE.firecrawlUrl || 'https://api.firecrawl.dev');
   sessionStorage.setItem(STORAGE_KEYS.cvText, STATE.cvText || '');
   sessionStorage.setItem(STORAGE_KEYS.searchTerms, STATE.searchTerms || '');
   sessionStorage.setItem(STORAGE_KEYS.jobs, JSON.stringify(STATE.jobs));
@@ -196,8 +184,6 @@ function attachListeners() {
   document.getElementById('openrouter-key').addEventListener('keydown', enterToSave);
   document.getElementById('bedrock-key').addEventListener('keydown', enterToSave);
   document.getElementById('aws-region').addEventListener('keydown', enterToSave);
-  document.getElementById('firecrawl-api-key').addEventListener('keydown', enterToSave);
-  document.getElementById('firecrawl-url').addEventListener('keydown', enterToSave);
 }
 
 function toggleProviderConfig() {
@@ -238,9 +224,6 @@ function saveKeys() {
     STATE.bedrockKey = bedrockKey;
     STATE.awsRegion = awsRegion || 'us-east-1';
   }
-
-  STATE.firecrawlApiKey = document.getElementById('firecrawl-api-key').value.trim();
-  STATE.firecrawlUrl = document.getElementById('firecrawl-url').value.trim() || 'https://api.firecrawl.dev';
 
   saveToSession();
   showUpload();
@@ -413,106 +396,30 @@ async function callLLMWithRetry(messages, maxRetries = 2) {
 
 async function searchJobs(searchTerms) {
   console.log('Searching jobs with terms:', searchTerms);
+  console.log('Generating job opportunities and search URLs...');
 
-  const jobs = [];
+  const jobs = await getLLMJobSuggestions(searchTerms);
 
-  // Use Firecrawl if API key is available
-  if (STATE.firecrawlApiKey) {
-    console.log('Using Firecrawl to search job boards...');
-    for (const term of searchTerms.slice(0, 5)) {
-      try {
-        const firecrawlJobs = await searchWithFirecrawl(term);
-        jobs.push(...firecrawlJobs);
-      } catch (error) {
-        console.warn('Firecrawl search failed:', error);
-      }
-    }
-  }
-
-  // If not enough jobs found, supplement with LLM suggestions
-  if (jobs.length < 10) {
-    console.log('Getting LLM job suggestions...');
-    const llmJobs = await getLLMJobSuggestions(searchTerms);
-    console.log('LLM returned', llmJobs.length, 'jobs');
-    jobs.push(...llmJobs);
-  }
-
-  console.log('Total jobs found:', jobs.length);
+  console.log('Generated', jobs.length, 'job opportunities');
   return jobs;
-}
-
-async function searchWithFirecrawl(searchTerm) {
-  // Use Firecrawl's search endpoint to find job listings
-  const jobBoards = [
-    `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(searchTerm)}`,
-    `https://www.indeed.com/jobs?q=${encodeURIComponent(searchTerm)}`
-  ];
-
-  const jobs = [];
-
-  for (const url of jobBoards) {
-    try {
-      const response = await fetch(`${STATE.firecrawlUrl}/v0/scrape`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${STATE.firecrawlApiKey}`
-        },
-        body: JSON.stringify({
-          url: url,
-          formats: ['markdown'],
-          onlyMainContent: true
-        })
-      });
-
-      if (!response.ok) {
-        console.warn(`Firecrawl failed for ${url}:`, response.status);
-        continue;
-      }
-
-      const data = await response.json();
-
-      // Extract job listings from scraped content
-      const extractedJobs = await extractJobsFromContent(data.markdown, searchTerm);
-      jobs.push(...extractedJobs);
-
-    } catch (error) {
-      console.warn(`Error scraping ${url}:`, error);
-    }
-  }
-
-  return jobs.slice(0, 5); // Limit to 5 jobs per search term
-}
-
-async function extractJobsFromContent(markdown, searchTerm) {
-  // Use LLM to extract structured job data from scraped content
-  const response = await callLLMWithRetry([
-    {
-      role: 'user',
-      content: `Extract job listings from this scraped job board content. Focus on jobs related to "${searchTerm}". Return up to 5 jobs.
-
-Content:
-${markdown.slice(0, 5000)}
-
-Return as JSON array with objects containing: title, company, url (if available), snippet (brief description)`
-    }
-  ]);
-
-  try {
-    return JSON.parse(response);
-  } catch {
-    console.error('Failed to parse extracted jobs');
-    return [];
-  }
 }
 
 async function getLLMJobSuggestions(searchTerms) {
   const response = await callLLMWithRetry([
     {
       role: 'user',
-      content: `Based on these job search terms, suggest 15 realistic job opportunities that might be available. For each job, provide: title, company (can be generic like "Tech Startup" or "Healthcare Provider"), a realistic job board URL or company careers page, and a brief description.
+      content: `Based on these job search terms, suggest 15 realistic job opportunities. For each job, provide:
+- title: The job title
+- company: Company name (can be real companies or generic like "Tech Startup")
+- url: A real job search URL - create URLs for LinkedIn, Indeed, or company career pages. Use actual search syntax like:
+  * LinkedIn: https://www.linkedin.com/jobs/search/?keywords=TITLE+LOCATION
+  * Indeed: https://www.indeed.com/jobs?q=TITLE&l=LOCATION
+  * Company: https://company.com/careers
+- snippet: Brief 1-2 sentence description of the role
 
 Search terms: ${searchTerms.join(', ')}
+
+IMPORTANT: Return ONLY valid JSON array, no markdown formatting, no code blocks. Start with [ and end with ].
 
 Return as JSON array with objects containing: title, company, url, snippet`
     }
@@ -521,9 +428,15 @@ Return as JSON array with objects containing: title, company, url, snippet`
   console.log('LLM job suggestions response:', response);
 
   try {
-    const parsed = JSON.parse(response);
+    // Remove markdown code blocks if present
+    let cleaned = response.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/```json\n?|\n?```/g, '');
+    }
+
+    const parsed = JSON.parse(cleaned);
     console.log('Parsed jobs:', parsed);
-    return parsed;
+    return Array.isArray(parsed) ? parsed : [];
   } catch (error) {
     console.error('Failed to parse job suggestions:', error, 'Response:', response);
     return [];

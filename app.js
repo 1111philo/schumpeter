@@ -145,13 +145,31 @@ async function extractText(file) {
     return await file.text();
   }
 
-  // For PDF/DOC, we'll need the LLM to extract via OCR or description
-  // For now, prompt user to use TXT or we'll send as-is
   if (file.type === 'application/pdf') {
-    throw new Error('PDF parsing requires additional libraries. Please convert to TXT or paste your CV content.');
+    return await extractPdfText(file);
   }
 
-  throw new Error('For DOC/DOCX files, please convert to TXT or copy-paste your CV content.');
+  throw new Error('For DOC/DOCX files, please convert to TXT or PDF, or copy-paste your CV content.');
+}
+
+async function extractPdfText(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+  let fullText = '';
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map(item => item.str).join(' ');
+    fullText += pageText + '\n\n';
+  }
+
+  if (!fullText.trim()) {
+    throw new Error('Could not extract text from PDF. It may be scanned/image-based. Please convert to TXT.');
+  }
+
+  return fullText;
 }
 
 async function analyzeAndSearch(cvText) {

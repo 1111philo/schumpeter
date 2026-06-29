@@ -372,6 +372,13 @@ async function callLLM(messages) {
 }
 
 async function callOpenRouter(messages) {
+  const requestBody = {
+    model: STATE.openRouterModel,
+    messages: messages
+  };
+
+  console.log('OpenRouter request:', requestBody);
+
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -380,16 +387,13 @@ async function callOpenRouter(messages) {
       'HTTP-Referer': window.location.origin,
       'X-Title': 'Schumpeter Job Finder'
     },
-    body: JSON.stringify({
-      model: STATE.openRouterModel,
-      messages: messages
-    })
+    body: JSON.stringify(requestBody)
   });
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
+    console.error('OpenRouter error response:', JSON.stringify(errorData, null, 2));
     const errorMsg = errorData.error?.message || errorData.message || `API error: ${response.status}`;
-    console.error('OpenRouter error:', errorData);
     throw new Error(errorMsg);
   }
 

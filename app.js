@@ -342,7 +342,7 @@ async function analyzeAndSearch(cvText) {
 }
 
 async function extractSearchTerms(cvText) {
-  const response = await callLLM([
+  const response = await callLLMWithRetry([
     {
       role: 'user',
       content: `Analyze this CV and extract 5-10 specific job search terms that would help find relevant job opportunities. Include job titles, key skills, and industries. Return as a JSON array of strings.
@@ -361,6 +361,43 @@ Return only the JSON array, no other text.`
     const terms = response.match(/"([^"]+)"/g)?.map(t => t.replace(/"/g, '')) || [];
     return terms.slice(0, 10);
   }
+}
+
+async function callLLMWithRetry(messages, maxRetries = 2) {
+  let lastError;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await callLLM(messages);
+    } catch (error) {
+      lastError = error;
+
+      // If rate limited and using OpenRouter, try next free model
+      if (error.message.includes('Rate limit') && STATE.aiProvider === 'openrouter') {
+        const cachedModels = sessionStorage.getItem('schumpeter_models');
+        if (cachedModels) {
+          const models = JSON.parse(cachedModels);
+          const freeModels = models.filter(m => m.id.includes(':free'));
+          const currentIndex = freeModels.findIndex(m => m.id === STATE.openRouterModel);
+
+          if (currentIndex >= 0 && currentIndex < freeModels.length - 1) {
+            const nextModel = freeModels[currentIndex + 1];
+            console.log(`Switching to ${nextModel.id} due to rate limit`);
+            STATE.openRouterModel = nextModel.id;
+            saveToSession();
+            continue; // Retry with new model
+          }
+        }
+      }
+
+      // For other errors or if no more models to try, throw
+      if (attempt === maxRetries - 1) {
+        throw lastError;
+      }
+    }
+  }
+
+  throw lastError;
 }
 
 async function searchJobs(searchTerms) {
@@ -401,7 +438,7 @@ async function searchWithSerpAPI(query) {
 }
 
 async function getLLMJobSuggestions(searchTerms) {
-  const response = await callLLM([
+  const response = await callLLMWithRetry([
     {
       role: 'user',
       content: `Based on these job search terms, suggest 15 realistic job opportunities that might be available. For each job, provide: title, company (can be generic like "Tech Startup" or "Healthcare Provider"), a realistic job board URL or company careers page, and a brief description.
@@ -420,7 +457,7 @@ Return as JSON array with objects containing: title, company, url, snippet`
 }
 
 async function rankJobs(cvText, searchTerms, jobs) {
-  const response = await callLLM([
+  const response = await callLLMWithRetry([
     {
       role: 'user',
       content: `Given this CV and these job opportunities, select the top 5-8 best matches. For each match, explain why it fits.
@@ -476,6 +513,13 @@ async function callOpenRouter(messages) {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     console.error('OpenRouter error response:', JSON.stringify(errorData, null, 2));
+
+    // Handle rate limits with helpful message
+    if (response.status === 429) {
+      const modelName = STATE.openRouterModel.split('/')[1];
+      throw new Error(`Rate limit reached for ${modelName}. Try a different free model or wait a few minutes.`);
+    }
+
     const errorMsg = errorData.error?.message || errorData.message || `API error: ${response.status}`;
     throw new Error(errorMsg);
   }

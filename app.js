@@ -174,6 +174,7 @@ function saveToSession() {
 function attachListeners() {
   document.getElementById('ai-provider').addEventListener('change', toggleProviderConfig);
   document.getElementById('save-keys').addEventListener('click', saveKeys);
+  document.getElementById('change-settings').addEventListener('click', showSetup);
   dropZone.addEventListener('click', () => cvInput.click());
   dropZone.addEventListener('dragover', handleDragOver);
   dropZone.addEventListener('dragleave', handleDragLeave);

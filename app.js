@@ -1,6 +1,7 @@
 const STATE = {
   aiProvider: 'openrouter',
   openRouterKey: null,
+  openRouterModel: 'google/gemini-2.0-flash-exp:free',
   bedrockKey: null,
   awsRegion: 'us-east-1',
   serpApiKey: null,
@@ -13,6 +14,7 @@ const STATE = {
 const STORAGE_KEYS = {
   aiProvider: 'schumpeter_provider',
   openRouter: 'schumpeter_openrouter',
+  openRouterModel: 'schumpeter_openrouter_model',
   bedrockKey: 'schumpeter_bedrock',
   awsRegion: 'schumpeter_aws_region',
   serpApi: 'schumpeter_serpapi',
@@ -44,6 +46,7 @@ function init() {
   // Restore API keys
   if (STATE.openRouterKey) {
     document.getElementById('openrouter-key').value = STATE.openRouterKey;
+    document.getElementById('openrouter-model').value = STATE.openRouterModel;
   }
   if (STATE.bedrockKey) {
     document.getElementById('bedrock-key').value = STATE.bedrockKey;
@@ -63,6 +66,7 @@ function init() {
 function loadFromSession() {
   STATE.aiProvider = sessionStorage.getItem(STORAGE_KEYS.aiProvider) || 'openrouter';
   STATE.openRouterKey = sessionStorage.getItem(STORAGE_KEYS.openRouter);
+  STATE.openRouterModel = sessionStorage.getItem(STORAGE_KEYS.openRouterModel) || 'google/gemini-2.0-flash-exp:free';
   STATE.bedrockKey = sessionStorage.getItem(STORAGE_KEYS.bedrockKey);
   STATE.awsRegion = sessionStorage.getItem(STORAGE_KEYS.awsRegion) || 'us-east-1';
   STATE.serpApiKey = sessionStorage.getItem(STORAGE_KEYS.serpApi);
@@ -75,6 +79,7 @@ function loadFromSession() {
 function saveToSession() {
   sessionStorage.setItem(STORAGE_KEYS.aiProvider, STATE.aiProvider);
   sessionStorage.setItem(STORAGE_KEYS.openRouter, STATE.openRouterKey || '');
+  sessionStorage.setItem(STORAGE_KEYS.openRouterModel, STATE.openRouterModel || 'google/gemini-2.0-flash-exp:free');
   sessionStorage.setItem(STORAGE_KEYS.bedrockKey, STATE.bedrockKey || '');
   sessionStorage.setItem(STORAGE_KEYS.awsRegion, STATE.awsRegion || 'us-east-1');
   sessionStorage.setItem(STORAGE_KEYS.serpApi, STATE.serpApiKey || '');
@@ -128,6 +133,7 @@ function saveKeys() {
       return;
     }
     STATE.openRouterKey = openRouterKey;
+    STATE.openRouterModel = document.getElementById('openrouter-model').value;
   } else {
     const bedrockKey = document.getElementById('bedrock-key').value.trim();
     const awsRegion = document.getElementById('aws-region').value.trim();
@@ -375,7 +381,7 @@ async function callOpenRouter(messages) {
       'X-Title': 'Schumpeter Job Finder'
     },
     body: JSON.stringify({
-      model: 'anthropic/claude-3.5-sonnet',
+      model: STATE.openRouterModel,
       messages: messages
     })
   });

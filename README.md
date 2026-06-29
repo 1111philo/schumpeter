@@ -20,12 +20,17 @@ Named after Joseph Schumpeter, who recognized that while innovation drives econo
 ## Setup
 
 1. Choose your AI provider:
-   - **OpenRouter**: Get an [OpenRouter API key](https://openrouter.ai/)
+   - **OpenRouter**: Get an [OpenRouter API key](https://openrouter.ai/) (free models available!)
    - **Amazon Bedrock**: Get a short-term API key from AWS Console → Bedrock (expires in 12 hours)
 2. (Optional) Get a [SerpAPI key](https://serpapi.com/) for Google job searches
 3. Visit [https://1111philo.github.io/schumpeter](https://1111philo.github.io/schumpeter)
-4. Select provider and enter your API key (stored in session storage only)
+4. Select provider, choose model (defaults to free Gemini 2.0 Flash), and enter your API key
 5. Upload your CV and find opportunities
+
+**Free Models Available:**
+- Gemini 2.0 Flash (Google) — Default, fast and capable
+- Llama 3.2 3B (Meta)
+- Qwen 2 7B (Alibaba)
 
 ## Design
 

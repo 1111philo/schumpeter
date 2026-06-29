@@ -4,7 +4,6 @@ const STATE = {
   openRouterModel: 'meta-llama/llama-3.2-3b-instruct:free',
   bedrockKey: null,
   awsRegion: 'us-east-1',
-  serpApiKey: null,
   cvText: null,
   searchTerms: null,
   jobs: []
@@ -17,7 +16,6 @@ const STORAGE_KEYS = {
   openRouterModel: 'schumpeter_openrouter_model',
   bedrockKey: 'schumpeter_bedrock',
   awsRegion: 'schumpeter_aws_region',
-  serpApi: 'schumpeter_serpapi',
   cvText: 'schumpeter_cv',
   searchTerms: 'schumpeter_terms',
   jobs: 'schumpeter_jobs'
@@ -54,9 +52,6 @@ async function init() {
   if (STATE.bedrockKey) {
     document.getElementById('bedrock-key').value = STATE.bedrockKey;
     document.getElementById('aws-region').value = STATE.awsRegion;
-  }
-  if (STATE.serpApiKey) {
-    document.getElementById('serpapi-key').value = STATE.serpApiKey;
   }
 
   if (STATE.jobs && STATE.jobs.length > 0) {
@@ -154,7 +149,6 @@ function loadFromSession() {
   STATE.openRouterModel = sessionStorage.getItem(STORAGE_KEYS.openRouterModel) || config.OPENROUTER_MODEL || 'meta-llama/llama-3.2-3b-instruct:free';
   STATE.bedrockKey = sessionStorage.getItem(STORAGE_KEYS.bedrockKey);
   STATE.awsRegion = sessionStorage.getItem(STORAGE_KEYS.awsRegion) || 'us-east-1';
-  STATE.serpApiKey = sessionStorage.getItem(STORAGE_KEYS.serpApi) || config.SERPAPI_KEY || null;
   STATE.cvText = sessionStorage.getItem(STORAGE_KEYS.cvText);
   STATE.searchTerms = sessionStorage.getItem(STORAGE_KEYS.searchTerms);
   const storedJobs = sessionStorage.getItem(STORAGE_KEYS.jobs);
@@ -167,7 +161,6 @@ function saveToSession() {
   sessionStorage.setItem(STORAGE_KEYS.openRouterModel, STATE.openRouterModel || 'meta-llama/llama-3.2-3b-instruct:free');
   sessionStorage.setItem(STORAGE_KEYS.bedrockKey, STATE.bedrockKey || '');
   sessionStorage.setItem(STORAGE_KEYS.awsRegion, STATE.awsRegion || 'us-east-1');
-  sessionStorage.setItem(STORAGE_KEYS.serpApi, STATE.serpApiKey || '');
   sessionStorage.setItem(STORAGE_KEYS.cvText, STATE.cvText || '');
   sessionStorage.setItem(STORAGE_KEYS.searchTerms, STATE.searchTerms || '');
   sessionStorage.setItem(STORAGE_KEYS.jobs, JSON.stringify(STATE.jobs));
@@ -191,7 +184,6 @@ function attachListeners() {
   document.getElementById('openrouter-key').addEventListener('keydown', enterToSave);
   document.getElementById('bedrock-key').addEventListener('keydown', enterToSave);
   document.getElementById('aws-region').addEventListener('keydown', enterToSave);
-  document.getElementById('serpapi-key').addEventListener('keydown', enterToSave);
 }
 
 function toggleProviderConfig() {
@@ -233,7 +225,6 @@ function saveKeys() {
     STATE.awsRegion = awsRegion || 'us-east-1';
   }
 
-  STATE.serpApiKey = document.getElementById('serpapi-key').value.trim();
   saveToSession();
   showUpload();
 }
@@ -404,45 +395,15 @@ async function callLLMWithRetry(messages, maxRetries = 2) {
 }
 
 async function searchJobs(searchTerms) {
-  const jobs = [];
-
   console.log('Searching jobs with terms:', searchTerms);
+  console.log('Getting LLM job suggestions...');
 
-  // Use SerpAPI if available, otherwise use LLM to suggest searches
-  if (STATE.serpApiKey) {
-    for (const term of searchTerms.slice(0, 5)) {
-      try {
-        const serpResults = await searchWithSerpAPI(term);
-        jobs.push(...serpResults);
-      } catch (error) {
-        console.warn('SerpAPI search failed:', error);
-      }
-    }
-  }
+  const jobs = await getLLMJobSuggestions(searchTerms);
 
-  // Fallback: ask LLM to suggest job sources based on search terms
-  if (jobs.length < 10) {
-    console.log('Getting LLM job suggestions...');
-    const llmJobs = await getLLMJobSuggestions(searchTerms);
-    console.log('LLM returned', llmJobs.length, 'jobs');
-    jobs.push(...llmJobs);
-  }
-
+  console.log('LLM returned', jobs.length, 'jobs');
   console.log('Total jobs found:', jobs.length);
+
   return jobs;
-}
-
-async function searchWithSerpAPI(query) {
-  const url = `https://serpapi.com/search?q=${encodeURIComponent(query + ' jobs')}&api_key=${STATE.serpApiKey}&num=10`;
-  const response = await fetch(url);
-  const data = await response.json();
-
-  return (data.organic_results || []).map(result => ({
-    title: result.title,
-    company: result.displayed_link || 'Unknown',
-    url: result.link,
-    snippet: result.snippet
-  }));
 }
 
 async function getLLMJobSuggestions(searchTerms) {
